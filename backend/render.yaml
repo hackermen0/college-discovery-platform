@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: aisignal-backend
+    env: node
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install && npm run prisma:generate && npm run build
+    startCommand: npm run prisma:deploy && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20

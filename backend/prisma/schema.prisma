@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // needed for Neon + Prisma migrations
+}
+
+model User {
+  id               String             @id @default(cuid())
+  email            String?            @unique
+  name             String?
+  imageUrl         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  accounts         Account[]
+  savedColleges    SavedCollege[]
+  savedComparisons SavedComparison[]
+  questions        Question[]
+}
+
+// Handles OAuth (Google) + credentials properly
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String  // "oauth" | "credentials"
+  provider          String  // "google" | "credentials"
+  providerAccountId String
+  password          String? // only for credentials provider (hashed)
+  access_token      String?
+  refresh_token     String?
+  expires_at        Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model College {
+  id            String         @id @default(cuid())
+  name          String
+  location      String
+  fees          Int
+  rating        Float
+  courses       String[]       // used for both filtering and detail page
+  placementRate Int
+  overview      String
+  placements    Json           // { averageSalary: number, topRecruiters: string[], rate: number }
+  reviews       Json           // { author: string, rating: number, comment: string }[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  savedBy       SavedCollege[]
+}
+
+model SavedCollege {
+  id        String   @id @default(cuid())
+  userId    String
+  collegeId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  college College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, collegeId])
+  @@index([userId])
+}
+
+model SavedComparison {
+  id         String   @id @default(cuid())
+  userId     String
+  collegeIds String[]
+  label      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  userId    String?
+  question  String
+  answer    String?  // nullable — unanswered questions are valid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
