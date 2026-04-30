@@ -1,16 +1,6 @@
-import { UserMenu } from "@/components/auth/UserMenu";
-
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">AI Signal Demo</h1>
-          <UserMenu />
-        </div>
-      </header>
-
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">

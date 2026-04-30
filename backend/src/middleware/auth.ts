@@ -20,7 +20,6 @@ const cookieNames = [
 ];
 
 async function readSessionToken(request: Request) {
-  // Try to read from cookies first
   for (const cookieName of cookieNames) {
     const token = await getToken({
       req: request as unknown as Parameters<typeof getToken>[0]['req'],
@@ -32,8 +31,7 @@ async function readSessionToken(request: Request) {
       return token;
     }
   }
-
-  // Try to read from Authorization Bearer header
+  
   const authHeader = request.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
@@ -83,14 +81,31 @@ async function resolveAuthenticatedUser(request: Request) {
     throw new HttpError(401, 'Invalid auth token.');
   }
 
-  return prisma.user.upsert({
-    where: { id: claims.sub },
-    update: {
-      email: claims.email ?? null,
-      name: claims.name ?? null,
-      imageUrl: claims.picture ?? null
-    },
-    create: {
+  // Avoid unique constraint errors when a different user already exists with
+  // the same email. First try to find an existing user by id or email. If one
+  // exists, update it and return; otherwise create a new user with the token's
+  // subject as the id.
+  const email = claims.email ?? undefined;
+
+  const whereClause: any = email ? { OR: [{ id: claims.sub }, { email }] } : { id: claims.sub };
+
+  const existing = await prisma.user.findFirst({ where: whereClause });
+
+  if (existing) {
+    // Update the found user record with latest profile info and return it.
+    return prisma.user.update({
+      where: { id: existing.id },
+      data: {
+        email: claims.email ?? existing.email,
+        name: claims.name ?? existing.name,
+        imageUrl: claims.picture ?? existing.imageUrl
+      }
+    });
+  }
+
+  // No existing user found; create a new one using the token's subject as id.
+  return prisma.user.create({
+    data: {
       id: claims.sub,
       email: claims.email ?? null,
       name: claims.name ?? null,
@@ -124,6 +139,7 @@ export async function requireAuth(request: Request, _response: Response, next: N
     if (error instanceof HttpError) {
       next(error);
     } else {
+      console.error('Unexpected error in requireAuth:', error);
       next(new HttpError(500, 'Failed to authenticate request.'));
     }
   }

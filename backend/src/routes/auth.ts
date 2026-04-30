@@ -1,3 +1,4 @@
+// backend/src/routes/auth.ts
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -8,7 +9,6 @@ import { requireAuth } from '../middleware/auth';
 
 export const authRouter = Router();
 
-// Validation schemas
 const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -27,7 +27,6 @@ const googleSignInSchema = z.object({
   providerAccountId: z.string()
 });
 
-// Helper to serialize user (never include password)
 function serializeUser(user: { id: string; email: string | null; name: string | null; imageUrl: string | null }) {
   return {
     id: user.id,
@@ -46,7 +45,6 @@ authRouter.post(
   asyncHandler(async (request, response) => {
     const body = registerSchema.parse(request.body);
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: body.email }
     });
@@ -55,10 +53,8 @@ authRouter.post(
       throw new HttpError(409, 'Email already registered');
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(body.password, 12);
 
-    // Create user and account in transaction
     const user = await prisma.user.create({
       data: {
         email: body.email,
@@ -91,7 +87,6 @@ authRouter.post(
   asyncHandler(async (request, response) => {
     const body = loginSchema.parse(request.body);
 
-    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: body.email },
       include: { accounts: true }
@@ -101,14 +96,12 @@ authRouter.post(
       throw new HttpError(401, 'Invalid email or password');
     }
 
-    // Find credentials account
     const credentialsAccount = user.accounts.find((acc) => acc.provider === 'credentials');
 
     if (!credentialsAccount || !credentialsAccount.password) {
       throw new HttpError(401, 'Invalid email or password');
     }
 
-    // Compare password
     const isValid = await bcrypt.compare(body.password, credentialsAccount.password);
 
     if (!isValid) {
@@ -124,47 +117,51 @@ authRouter.post(
 /**
  * POST /auth/google
  * Handle Google sign-in: upsert user and account
- * Called by frontend after Google OAuth sign-in
+ * Called by frontend during Google OAuth sign-in
+ * Public endpoint - no auth required
  */
 authRouter.post(
   '/google',
   asyncHandler(async (request, response) => {
     const body = googleSignInSchema.parse(request.body);
 
-    // Upsert user
-    const user = await prisma.user.upsert({
-      where: { email: body.email },
-      update: {
-        name: body.name || undefined,
-        imageUrl: body.imageUrl || undefined
-      },
-      create: {
-        email: body.email,
-        name: body.name || null,
-        imageUrl: body.imageUrl || null
-      }
-    });
+    try {
+      const user = await prisma.user.upsert({
+        where: { email: body.email },
+        update: {
+          name: body.name || undefined,
+          imageUrl: body.imageUrl || undefined
+        },
+        create: {
+          email: body.email,
+          name: body.name || null,
+          imageUrl: body.imageUrl || null
+        }
+      });
 
-    // Upsert or create Google account
-    await prisma.account.upsert({
-      where: {
-        provider_providerAccountId: {
+      await prisma.account.upsert({
+        where: {
+          provider_providerAccountId: {
+            provider: 'google',
+            providerAccountId: body.providerAccountId
+          }
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          type: 'oauth',
           provider: 'google',
           providerAccountId: body.providerAccountId
         }
-      },
-      update: {},
-      create: {
-        userId: user.id,
-        type: 'oauth',
-        provider: 'google',
-        providerAccountId: body.providerAccountId
-      }
-    });
+      });
 
-    response.json({
-      data: serializeUser(user)
-    });
+      response.json({
+        data: serializeUser(user)
+      });
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw new HttpError(500, 'Failed to process Google sign-in');
+    }
   })
 );
 

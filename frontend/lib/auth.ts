@@ -5,6 +5,19 @@ import GoogleProvider from 'next-auth/providers/google';
 
 const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+interface AuthUser extends User {
+  id: string;
+}
+
+interface BackendResponse {
+  data: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    imageUrl: string | null;
+  };
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -33,7 +46,7 @@ export const authOptions: NextAuthOptions = {
           }
 
           const result = await response.json();
-          return result.data as User;
+          return result.data as AuthUser;
         } catch (error) {
           console.error('Credentials provider error:', error);
           return null;
@@ -50,39 +63,44 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, account }) {
-      // Handle Google sign-in
-      if (account?.provider === 'google' && user) {
-        try {
-          const response = await fetch(`${backendUrl}/api/auth/google`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email,
-              name: user.name,
-              imageUrl: user.image,
-              providerAccountId: account.providerAccountId
-            })
-          });
+      if (user) {
+        if (account?.provider === 'google') {
+          // Google OAuth sign-in: call backend to get Prisma User.id
+          try {
+            const response = await fetch(`${backendUrl}/api/auth/google`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: user.email,
+                name: user.name,
+                imageUrl: user.image,
+                providerAccountId: account.providerAccountId
+              })
+            });
 
-          if (response.ok) {
-            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(`Backend returned ${response.status}`);
+            }
+
+            const result = (await response.json()) as BackendResponse;
             const dbUser = result.data;
+
+            // Set Prisma User.id (cuid) in token, not the Google profile ID
             token.id = dbUser.id;
             token.email = dbUser.email;
             token.name = dbUser.name;
-            token.picture = dbUser.imageUrl;
+            token.imageUrl = dbUser.imageUrl;
+          } catch (error) {
+            console.error('Google sign-in backend call failed:', error);
+            throw new Error('Failed to authenticate with Google');
           }
-        } catch (error) {
-          console.error('Google sign-in backend call failed:', error);
+        } else {
+          // Credentials sign-in: user.id is already the Prisma User.id (cuid)
+          token.id = user.id;
+          token.email = user.email;
+          token.name = user.name;
+          token.imageUrl = user.image;
         }
-      }
-
-      // Handle credentials login
-      if (user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.picture = user.image;
       }
 
       return token;
@@ -90,7 +108,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id as string) || '';
-        session.user.image = (token.picture as string) || null;
+        session.user.email = (token.email as string) || '';
+        session.user.name = (token.name as string) || null;
+        session.user.image = (token.imageUrl as string) || null;
       }
       return session;
     }

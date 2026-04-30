@@ -14,8 +14,8 @@ const listQuerySchema = z.object({
   maxFees: z.coerce.number().int().nonnegative().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(50).default(12),
-  sortBy: z.enum(['rating', 'fees', 'placementRate']).default('rating'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc')
+  sortBy: z.enum(['name', 'rating', 'fees', 'placementRate']).default('name'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc')
 });
 
 const compareBodySchema = z.object({
