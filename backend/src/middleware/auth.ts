@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { jwtVerify } from 'jose';
 import { getToken } from 'next-auth/jwt';
 import { authConfig } from '../config/env';
 import { prisma } from '../db/prisma';
@@ -19,6 +20,7 @@ const cookieNames = [
 ];
 
 async function readSessionToken(request: Request) {
+  // Try to read from cookies first
   for (const cookieName of cookieNames) {
     const token = await getToken({
       req: request as unknown as Parameters<typeof getToken>[0]['req'],
@@ -28,6 +30,24 @@ async function readSessionToken(request: Request) {
 
     if (token) {
       return token;
+    }
+  }
+
+  // Try to read from Authorization Bearer header
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    
+    if (!authConfig.secret) {
+      throw new HttpError(500, 'Auth is not configured. Set NEXTAUTH_SECRET or AUTH_SECRET.');
+    }
+
+    try {
+      const secret = new TextEncoder().encode(authConfig.secret);
+      const verified = await jwtVerify(token, secret);
+      return verified.payload;
+    } catch (error) {
+      throw new HttpError(401, 'Invalid or expired token.');
     }
   }
 
@@ -88,7 +108,7 @@ export async function requireAuth(request: Request, _response: Response, next: N
     const user = await resolveAuthenticatedUser(request);
 
     if (!user) {
-      next(new HttpError(401, 'Missing NextAuth session cookie.'));
+      next(new HttpError(401, 'Missing or invalid authentication token.'));
       return;
     }
 
@@ -98,8 +118,13 @@ export async function requireAuth(request: Request, _response: Response, next: N
       name: user.name,
       imageUrl: user.imageUrl
     };
+
     next();
   } catch (error) {
-    next(error);
+    if (error instanceof HttpError) {
+      next(error);
+    } else {
+      next(new HttpError(500, 'Failed to authenticate request.'));
+    }
   }
 }
