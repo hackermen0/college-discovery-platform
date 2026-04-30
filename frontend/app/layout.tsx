@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Signal — Compare Colleges & Programs",
+  title: "College Discovery — Compare Colleges & Programs",
   description:
     "AI Signal helps students discover, compare, and save college program comparisons with data-driven insights and an integrated Q&A assistant.",
   keywords: ["college comparison", "education", "ai recommendations", "admissions"],

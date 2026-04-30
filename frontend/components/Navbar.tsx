@@ -19,7 +19,7 @@ export function Navbar() {
     <header className="w-full border-b border-gray-600 bg-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between flex-wrap gap-2">
         <Link href="/" className="text-2xl font-bold text-gray-900 shrink-0">
-          AI Signal
+          College Discovery
         </Link>
 
         <div className="flex items-center gap-4 flex-wrap">
