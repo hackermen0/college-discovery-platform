@@ -58,7 +58,18 @@ export async function apiFetch<T = unknown>(path: string, options: ApiOptions = 
     throw new Error(message);
   }
 
-  return response.json();
+  // If the response has no content (204) or an empty body, return null.
+  // Otherwise try to parse JSON; if parsing fails, return the raw text.
+  if (response.status === 204) return null as unknown as T;
+
+  const text = await response.text();
+  if (!text || !text.trim()) return null as unknown as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
 }
 
 export async function apiGet<T = unknown>(path: string, options?: ApiOptions): Promise<T> {
