@@ -8,9 +8,7 @@
     },
     "backend": {
       "entrypoint": "backend",
-      "routePrefix": "/_/backend",
-      "buildCommand": "npm --prefix backend run build",
-      "outputDirectory": "backend/dist"
+      "routePrefix": "/_/backend"
     }
   }
 }
