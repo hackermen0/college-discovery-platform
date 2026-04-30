@@ -10,6 +10,8 @@ export function Navbar() {
 
   const navLinks = [
     { href: '/colleges', label: 'Colleges' },
+    { href: '/compare', label: 'Compare' },
+    { href: '/saved-comparisons', label: 'Saved Comparisons' },
     { href: '/qa', label: 'Q&A' }
   ];
 

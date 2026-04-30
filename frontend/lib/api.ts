@@ -42,7 +42,20 @@ export async function apiFetch<T = unknown>(path: string, options: ApiOptions = 
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
+    let message = 'Something went wrong. Please try again.';
+
+    try {
+      const errorBody = await response.json();
+      if (typeof errorBody?.error === 'string' && errorBody.error.trim()) {
+        message = errorBody.error;
+      }
+    } catch {
+      if (response.statusText) {
+        message = response.statusText;
+      }
+    }
+
+    throw new Error(message);
   }
 
   return response.json();

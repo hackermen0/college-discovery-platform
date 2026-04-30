@@ -93,7 +93,7 @@ export function AnswerModal({ isOpen, questionId, onClose, onSuccess }: AnswerMo
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="Share your answer or helpful guidance..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               rows={6}
               disabled={isLoading}
             />

@@ -6,6 +6,7 @@ import { Star, MapPin, IndianRupee, TrendingUp, ChevronLeft, Bookmark, Share2 } 
 import { apiFetch } from '@/lib/api';
 import type { GetCollegeResponse } from '@/types/college';
 import type { Metadata } from 'next';
+import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 
 interface PageProps {
   params: Promise<{
@@ -164,6 +165,7 @@ export default async function CollegeDetailPage({ params, searchParams }: PagePr
 
           {/* Action Buttons */}
           <div className="flex gap-3 mt-8">
+            <CompareToggleButton collegeId={college.id} collegeName={college.name} />
             {session?.user ? (
               <button className="flex items-center gap-2 px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
                 <Bookmark size={20} />
